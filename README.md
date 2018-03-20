@@ -1,2 +1,3 @@
-# Mueqqen
-Müqqen is a MQTT asset package for Unity.
+# Müqqen
+
+Müqqen is a MQTT asset package for Unity. 
