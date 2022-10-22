@@ -1,40 +1,40 @@
-﻿// Copyright (c) 2018 Julian Löhr
+// Copyright (c) 2022 Julian Löhr
 // Licensed under the MIT license.
 using UnityEngine;
 
 namespace Mueqqen
-{ 
-    public class Singleton<T> : MonoBehaviour where T: Singleton<T>
+{
+    public class Singleton<T> : MonoBehaviour where T : Singleton<T>
     {
         private static T SingletonInstance;
 
         public static T Instance
         {
-            get {
+            get
+            {
                 return SingletonInstance;
             }
         }
 
         protected virtual void Awake()
         {
-            if(SingletonInstance == null)
+            if (SingletonInstance == null)
             {
                 SingletonInstance = this as T;
-                DontDestroyOnLoad(gameObject);
+                DontDestroyOnLoad(this.gameObject);
             }
             else
             {
                 Debug.LogErrorFormat("Instantiation of a second singleton of type {0}.", typeof(T).Name);
             }
         }
-        
+
         protected virtual void OnDestroy()
         {
-            if(SingletonInstance == this)
+            if (SingletonInstance == this)
             {
                 SingletonInstance = null;
             }
-
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Julian Löhr
+// Copyright (c) 2022 Julian Löhr
 // Licensed under the MIT license.
 using System;
 using System.Collections.Generic;
@@ -8,15 +8,15 @@ namespace Mueqqen
 {
     public class MQTTSubscription
     {
-        private string RegexTopic;
-        private List<Action<string, byte[]>> Callbacks = new List<Action<string, byte[]>>();
+        private readonly string RegexTopic;
+        private readonly List<Action<string, byte[]>> Callbacks = new List<Action<string, byte[]>>();
 
-        public bool HasNoSubscribers { get { return (Callbacks.Count == 0); } }
+        public bool HasNoSubscribers { get { return (this.Callbacks.Count == 0); } }
 
         public MQTTSubscription(string Topic, Action<string, byte[]> Callback)
         {
-            RegexTopic = ConvertTopic(Topic);
-            AddCallback(Callback);
+            this.RegexTopic = this.ConvertTopic(Topic);
+            this.AddCallback(Callback);
         }
 
         private string ConvertTopic(string Topic)
@@ -42,7 +42,7 @@ namespace Mueqqen
             foreach (Match Match in Regex.Matches(Topic, @"((?=\+\/)|.+?)(?:$|((?<=^)|(?<=\/))\+(?=\/))"))
             {
                 // Replace '+' wildcard with regex that matches arbitrary characters until '/'
-                if(Match.Index != 0)
+                if (Match.Index != 0)
                 {
                     ConvertedTopic += @"[^\/]+";
                 }
@@ -51,7 +51,7 @@ namespace Mueqqen
             }
 
             // In case of '#' wildcard, add generic "match all" regex
-            if(EndWildcard)
+            if (EndWildcard)
             {
                 ConvertedTopic += @".+";
             }
@@ -63,19 +63,19 @@ namespace Mueqqen
 
         public void AddCallback(Action<string, byte[]> Callback)
         {
-            Callbacks.Add(Callback);
+            this.Callbacks.Add(Callback);
         }
 
         public void RemoveCallback(Action<string, byte[]> Callback)
         {
-            Callbacks.Remove(Callback);
+            this.Callbacks.Remove(Callback);
         }
 
         public void ProcessMessage(string Topic, byte[] Payload)
         {
-            if(Regex.IsMatch(Topic, RegexTopic))
+            if (Regex.IsMatch(Topic, this.RegexTopic))
             {
-                foreach(Action<string, byte[]> Callback in Callbacks)
+                foreach (Action<string, byte[]> Callback in this.Callbacks)
                 {
                     Callback(Topic, Payload);
                 }

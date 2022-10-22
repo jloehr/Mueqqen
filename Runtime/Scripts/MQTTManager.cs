@@ -1,9 +1,11 @@
-﻿// Copyright (c) 2018 Julian Löhr
+// Copyright (c) 2022 Julian Löhr
 // Licensed under the MIT license.
 using System;
 using System.Collections;
 using System.Collections.Generic;
+
 using UnityEngine;
+
 using uPLibrary.Networking.M2Mqtt;
 using uPLibrary.Networking.M2Mqtt.Messages;
 
@@ -43,70 +45,70 @@ namespace Mueqqen
 #if UNITY_WSA && !UNITY_EDITOR
             Connection = new MqttClient(BrokerHostname, Port, false, MqttSslProtocols.None);    
 #else
-            Connection = new MqttClient(BrokerHostname, Port, false, MqttSslProtocols.None, null, null);
+            this.Connection = new MqttClient(this.BrokerHostname, this.Port, false, MqttSslProtocols.None, null, null);
 #endif
-            Connection.MqttMsgPublishReceived += OnMqttMsgPublishReceived;
+            this.Connection.MqttMsgPublishReceived += this.OnMqttMsgPublishReceived;
 
-            if (AutoConnect)
+            if (this.AutoConnect)
             {
-                TryToConnect();
+                this.TryToConnect();
             }
         }
 
         public void TryToConnect()
         {
-            if (ConnectingRoutine != null || Connection.IsConnected)
+            if (this.ConnectingRoutine != null || this.Connection.IsConnected)
             {
                 return;
             }
 
-            ConnectingRoutine = StartCoroutine(Connect());
+            this.ConnectingRoutine = this.StartCoroutine(this.Connect());
         }
 
         public IEnumerator Connect()
         {
-            while (!Connection.IsConnected)
+            while (!this.Connection.IsConnected)
             {
                 try
                 {
-                    Connection.Connect(Guid.NewGuid().ToString());
+                    this.Connection.Connect(Guid.NewGuid().ToString());
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
-                    Debug.Log("Unable to connect to " + BrokerHostname);
+                    Debug.Log("Unable to connect to " + this.BrokerHostname);
                     Debug.LogException(e);
                 }
 
-                yield return new WaitForSeconds(ConnectionAttemptInterval);
+                yield return new WaitForSeconds(this.ConnectionAttemptInterval);
             }
 
-            SubscribeAll();
-            ConnectingRoutine = null;
+            this.SubscribeAll();
+            this.ConnectingRoutine = null;
         }
         #endregion
 
         #region Destruction and Disconnect
         protected override void OnDestroy()
         {
-            Connection.MqttMsgPublishReceived -= OnMqttMsgPublishReceived;
+            this.Connection.MqttMsgPublishReceived -= this.OnMqttMsgPublishReceived;
 
-            Disconnect();
+            this.Disconnect();
 
             // Make sure MQTTClient Thread is not within our event handler;
-            lock (MessageQueue) { };
+            lock (this.MessageQueue) { };
             base.OnDestroy();
         }
 
         public void Disconnect()
         {
-            if (ConnectingRoutine != null)
+            if (this.ConnectingRoutine != null)
             {
-                StopCoroutine(ConnectingRoutine);
+                this.StopCoroutine(this.ConnectingRoutine);
             }
 
             try
             {
-                Connection.Disconnect();
+                this.Connection.Disconnect();
             }
             catch { };
         }
@@ -115,61 +117,60 @@ namespace Mueqqen
         #region Subscribe, Unsubscribe and Publish
         public void Subscribe(string Topic, Action<string, byte[]> Callback)
         {
-            Subscribe(new string[] { Topic }, new Action<string, byte[]>[] { Callback });
+            this.Subscribe(new string[] { Topic }, new Action<string, byte[]>[] { Callback });
         }
 
         public void Subscribe(string[] Topics, Action<string, byte[]>[] Callbacks)
         {
             int TopicsCount = Math.Min(Topics.Length, Callbacks.Length);
             List<string> NewSubscriptions = new List<string>();
-            
+
             for (int i = 0; i < TopicsCount; i++)
             {
-                MQTTSubscription Subscription;
-                if(Subscriptions.TryGetValue(Topics[i], out Subscription))
+                if (this.Subscriptions.TryGetValue(Topics[i], out MQTTSubscription Subscription))
                 {
                     Subscription.AddCallback(Callbacks[i]);
                 }
                 else
                 {
-                    Subscriptions.Add(Topics[i], new MQTTSubscription(Topics[i], Callbacks[i]));
+                    this.Subscriptions.Add(Topics[i], new MQTTSubscription(Topics[i], Callbacks[i]));
                     NewSubscriptions.Add(Topics[i]);
                 }
             }
 
-            if(NewSubscriptions.Count > 0)
+            if (NewSubscriptions.Count > 0)
             {
-                Subscribe(NewSubscriptions.ToArray());
+                this.Subscribe(NewSubscriptions.ToArray());
             }
         }
 
         private void SubscribeAll()
         {
-            if (Subscriptions.Count == 0)
+            if (this.Subscriptions.Count == 0)
                 return;
 
-            string[] Topics = new string[Subscriptions.Count];
-            Subscriptions.Keys.CopyTo(Topics, 0);
-            Subscribe(Topics);
+            string[] Topics = new string[this.Subscriptions.Count];
+            this.Subscriptions.Keys.CopyTo(Topics, 0);
+            this.Subscribe(Topics);
         }
 
         private void Subscribe(string[] Topics)
         {
-            if (Connection.IsConnected)
+            if (this.Connection.IsConnected)
             {
                 byte[] QoS = new byte[Topics.Length];
-                for(int i = 0; i < QoS.Length; i++)
+                for (int i = 0; i < QoS.Length; i++)
                 {
                     QoS[i] = MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE;
                 }
 
-                Connection.Subscribe(Topics, QoS);
+                this.Connection.Subscribe(Topics, QoS);
             }
         }
 
         public void Unsubscribe(string Topic, Action<string, byte[]> Callback)
         {
-            Unsubscribe(new string[] { Topic }, new Action<string, byte[]>[] { Callback });
+            this.Unsubscribe(new string[] { Topic }, new Action<string, byte[]>[] { Callback });
         }
 
         public void Unsubscribe(string[] Topics, Action<string, byte[]>[] Callbacks)
@@ -179,14 +180,13 @@ namespace Mueqqen
 
             for (int i = 0; i < TopicsCount; i++)
             {
-                MQTTSubscription Subscription;
-                if (Subscriptions.TryGetValue(Topics[i], out Subscription))
+                if (this.Subscriptions.TryGetValue(Topics[i], out MQTTSubscription Subscription))
                 {
                     Subscription.RemoveCallback(Callbacks[i]);
-                    if(Subscription.HasNoSubscribers)
+                    if (Subscription.HasNoSubscribers)
                     {
                         ObsoleteSubscriptions.Add(Topics[i]);
-                        Subscriptions.Remove(Topics[i]);
+                        this.Subscriptions.Remove(Topics[i]);
                     }
                 }
                 else
@@ -198,7 +198,7 @@ namespace Mueqqen
 
         private byte ConvertQoS(PublishType QoS)
         {
-            switch(QoS)
+            switch (QoS)
             {
                 case PublishType.FireAndForget:
                     return MqttMsgBase.QOS_LEVEL_AT_MOST_ONCE;
@@ -214,9 +214,9 @@ namespace Mueqqen
 
         public void Publish(string Topic, byte[] Data, bool Retain, PublishType QoS)
         {
-            if (Connection.IsConnected)
+            if (this.Connection.IsConnected)
             {
-                Connection.Publish(Topic, Data, ConvertQoS(QoS), Retain);
+                this.Connection.Publish(Topic, Data, ConvertQoS(QoS), Retain);
             }
         }
         #endregion
@@ -224,38 +224,38 @@ namespace Mueqqen
         #region Update
         private void Update()
         {
-            if (Connection.IsConnected)
+            if (this.Connection.IsConnected)
             {
-                ProcessQueue();
+                this.ProcessQueue();
             }
-            else if (AutoConnect)
+            else if (this.AutoConnect)
             {
-                TryToConnect();
+                this.TryToConnect();
             }
         }
 
         private void OnMqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
         {
-            lock (MessageQueue)
+            lock (this.MessageQueue)
             {
-                MessageQueue.Enqueue(new Message(e.Topic, e.Message));
+                this.MessageQueue.Enqueue(new Message(e.Topic, e.Message));
             }
         }
 
         private void ProcessQueue()
         {
-            lock (MessageQueue)
+            lock (this.MessageQueue)
             {
-                while (MessageQueue.Count > 0)
+                while (this.MessageQueue.Count > 0)
                 {
-                    ProcessMessage(MessageQueue.Dequeue());
+                    this.ProcessMessage(this.MessageQueue.Dequeue());
                 }
             }
         }
-        
+
         private void ProcessMessage(Message NewMessage)
         {
-            foreach (MQTTSubscription Endpoint in Subscriptions.Values)
+            foreach (MQTTSubscription Endpoint in this.Subscriptions.Values)
             {
                 Endpoint.ProcessMessage(NewMessage.Topic, NewMessage.Data);
             }
