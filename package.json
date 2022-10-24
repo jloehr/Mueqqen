@@ -1,17 +1,17 @@
 {
   "name": "com.julianloehr.mueqqen",
-  "displayName": "Müqqen",
-  "version": "0.9.0",
+  "displayName": "M\u00fcqqen",
+  "version": "0.9.1",
   "unity": "2020.3",
-  "description": "Müqqen is a MQTT client package for Unity.",
+  "description": "M\u00fcqqen is a MQTT client package for Unity.",
   "keywords": [
-     "MQTT",
-     "M2Mqtt",
-     "IoT"
-   ],
-   "author": {
-     "name": "Julian Löhr",
-     "email": "info@julianloehr.de",
-     "url": "https://www.julianloehr.de"
-   }
+    "MQTT",
+    "M2Mqtt",
+    "IoT"
+  ],
+  "author": {
+    "name": "Julian L\u00f6hr",
+    "email": "info@julianloehr.de",
+    "url": "https://www.julianloehr.de"
+  }
 }

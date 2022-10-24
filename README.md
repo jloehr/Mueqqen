@@ -2,7 +2,7 @@
 
 Müqqen is a MQTT client package for Unity. 
 
-*Version: 0.9*
+*Version: 0.9.1*
 
 # License
 
