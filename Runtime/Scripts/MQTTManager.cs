@@ -216,7 +216,7 @@ namespace Mueqqen
         {
             if (this.Connection.IsConnected)
             {
-                this.Connection.Publish(Topic, Data, ConvertQoS(QoS), Retain);
+                this.Connection.Publish(Topic, Data, this.ConvertQoS(QoS), Retain);
             }
         }
         #endregion
