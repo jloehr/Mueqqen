@@ -1,6 +1,6 @@
 This package contains third-party software components governed by the license(s) indicated below:
 ---------
 
-Component Name: M2Mqtt
+Component Name: MQTTnet
 
-License Type: "Eclipse Public License - v 1.0"
+License Type: "The MIT License (MIT)"

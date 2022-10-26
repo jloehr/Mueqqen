@@ -3,17 +3,24 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 using UnityEngine;
 
-using uPLibrary.Networking.M2Mqtt;
-using uPLibrary.Networking.M2Mqtt.Messages;
+using MQTTnet;
+using MQTTnet.Client;
+using MQTTnet.Protocol;
 
 namespace Mueqqen
 {
-    public class MQTTManager : Singleton<MQTTManager>
+    public class MQTTManager : MonoBehaviour
     {
         public enum PublishType { FireAndForget, FireTillAck, ExactlyOnce };
+
+        public static MQTTManager Instance
+        {
+            get { return MQTTManagerSingleton.Instance; }
+        }
 
         private struct Message
         {
@@ -32,22 +39,18 @@ namespace Mueqqen
         public bool AutoConnect = true;
         public float ConnectionAttemptInterval = 1f;
 
-        private MqttClient Connection = null;
+        private MqttFactory MqttFactory = new MqttFactory();
+        private IMqttClient Connection = null;
         private Coroutine ConnectingRoutine = null;
 
         private Queue<Message> MessageQueue = new Queue<Message>();
         private Dictionary<string, MQTTSubscription> Subscriptions = new Dictionary<string, MQTTSubscription>();
 
         #region Setup and Connecting
-        protected override void Awake()
+        private void Awake()
         {
-            base.Awake();
-#if UNITY_WSA && !UNITY_EDITOR
-            Connection = new MqttClient(BrokerHostname, Port, false, MqttSslProtocols.None);    
-#else
-            this.Connection = new MqttClient(this.BrokerHostname, this.Port, false, MqttSslProtocols.None, null, null);
-#endif
-            this.Connection.MqttMsgPublishReceived += this.OnMqttMsgPublishReceived;
+            this.Connection = this.MqttFactory.CreateMqttClient();
+            this.Connection.ApplicationMessageReceivedAsync += this.ApplicationMessageReceivedAsync;
 
             if (this.AutoConnect)
             {
@@ -67,19 +70,18 @@ namespace Mueqqen
 
         public IEnumerator Connect()
         {
+            MqttClientOptions mqttClientOptions = this.MqttFactory.CreateClientOptionsBuilder().WithTcpServer(this.BrokerHostname, this.Port).Build();
+
             while (!this.Connection.IsConnected)
             {
-                try
-                {
-                    this.Connection.Connect(Guid.NewGuid().ToString());
-                }
-                catch (Exception e)
-                {
-                    Debug.Log("Unable to connect to " + this.BrokerHostname);
-                    Debug.LogException(e);
-                }
+                Task<MqttClientConnectResult> connectTask = this.Connection.ConnectAsync(mqttClientOptions);
 
-                yield return new WaitForSeconds(this.ConnectionAttemptInterval);
+                yield return new WaitUntil(() => connectTask.IsCompleted);
+
+                if (connectTask.IsFaulted)
+                {
+                    yield return new WaitForSeconds(this.ConnectionAttemptInterval);
+                }
             }
 
             this.SubscribeAll();
@@ -88,15 +90,14 @@ namespace Mueqqen
         #endregion
 
         #region Destruction and Disconnect
-        protected override void OnDestroy()
+        protected void OnDestroy()
         {
-            this.Connection.MqttMsgPublishReceived -= this.OnMqttMsgPublishReceived;
+            this.Connection.ApplicationMessageReceivedAsync -= this.ApplicationMessageReceivedAsync;
 
             this.Disconnect();
 
             // Make sure MQTTClient Thread is not within our event handler;
             lock (this.MessageQueue) { };
-            base.OnDestroy();
         }
 
         public void Disconnect()
@@ -106,11 +107,8 @@ namespace Mueqqen
                 this.StopCoroutine(this.ConnectingRoutine);
             }
 
-            try
-            {
-                this.Connection.Disconnect();
-            }
-            catch { };
+            // Ungraceful Disconnect for now
+            this.Connection.Dispose();
         }
         #endregion
 
@@ -158,13 +156,14 @@ namespace Mueqqen
         {
             if (this.Connection.IsConnected)
             {
-                byte[] QoS = new byte[Topics.Length];
-                for (int i = 0; i < QoS.Length; i++)
+                MqttClientSubscribeOptionsBuilder mqttSubscribeOptions = this.MqttFactory.CreateSubscribeOptionsBuilder();
+
+                foreach(string Topic in Topics)
                 {
-                    QoS[i] = MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE;
+                    mqttSubscribeOptions.WithTopicFilter(Topic);
                 }
 
-                this.Connection.Subscribe(Topics, QoS);
+                this.Connection.SubscribeAsync(mqttSubscribeOptions.Build());
             }
         }
 
@@ -196,19 +195,19 @@ namespace Mueqqen
             }
         }
 
-        private byte ConvertQoS(PublishType QoS)
+        private MqttQualityOfServiceLevel ConvertQoS(PublishType QoS)
         {
             switch (QoS)
             {
                 case PublishType.FireAndForget:
-                    return MqttMsgBase.QOS_LEVEL_AT_MOST_ONCE;
+                    return MqttQualityOfServiceLevel.AtMostOnce;
                 case PublishType.FireTillAck:
-                    return MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE;
+                    return MqttQualityOfServiceLevel.AtLeastOnce;
                 case PublishType.ExactlyOnce:
-                    return MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE;
+                    return MqttQualityOfServiceLevel.ExactlyOnce;
                 default:
                     Debug.LogError("Unknown QoS Type");
-                    return MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE;
+                    return MqttQualityOfServiceLevel.AtMostOnce;
             }
         }
 
@@ -216,7 +215,7 @@ namespace Mueqqen
         {
             if (this.Connection.IsConnected)
             {
-                this.Connection.Publish(Topic, Data, this.ConvertQoS(QoS), Retain);
+                this.Connection.PublishBinaryAsync(Topic, Data, this.ConvertQoS(QoS), Retain);
             }
         }
         #endregion
@@ -234,12 +233,14 @@ namespace Mueqqen
             }
         }
 
-        private void OnMqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
+        private Task ApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
         {
             lock (this.MessageQueue)
             {
-                this.MessageQueue.Enqueue(new Message(e.Topic, e.Message));
+                this.MessageQueue.Enqueue(new Message(arg.ApplicationMessage.Topic, arg.ApplicationMessage.Payload));
             }
+
+            return Task.CompletedTask;
         }
 
         private void ProcessQueue()
