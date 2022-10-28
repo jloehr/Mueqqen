@@ -6,14 +6,14 @@ using System.Text.RegularExpressions;
 
 namespace Mueqqen
 {
-    public class MQTTSubscription
+    public class MqttSubscription
     {
         private readonly string RegexTopic;
         private readonly List<Action<string, byte[]>> Callbacks = new List<Action<string, byte[]>>();
 
         public bool HasNoSubscribers { get { return (this.Callbacks.Count == 0); } }
 
-        public MQTTSubscription(string Topic, Action<string, byte[]> Callback)
+        public MqttSubscription(string Topic, Action<string, byte[]> Callback)
         {
             this.RegexTopic = this.ConvertTopic(Topic);
             this.AddCallback(Callback);

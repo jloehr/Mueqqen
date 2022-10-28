@@ -13,13 +13,13 @@ using MQTTnet.Protocol;
 
 namespace Mueqqen
 {
-    public class MQTTManager : MonoBehaviour
+    public class MqttClient : MonoBehaviour
     {
         public enum PublishType { FireAndForget, FireTillAck, ExactlyOnce };
 
-        public static MQTTManager Instance
+        public static MqttClient Instance
         {
-            get { return MQTTManagerSingleton.Instance; }
+            get { return MqttSingleton.Instance; }
         }
 
         private struct Message
@@ -44,7 +44,7 @@ namespace Mueqqen
         private Coroutine ConnectingRoutine = null;
 
         private Queue<Message> MessageQueue = new Queue<Message>();
-        private Dictionary<string, MQTTSubscription> Subscriptions = new Dictionary<string, MQTTSubscription>();
+        private Dictionary<string, MqttSubscription> Subscriptions = new Dictionary<string, MqttSubscription>();
 
         #region Setup and Connecting
         private void Awake()
@@ -125,13 +125,13 @@ namespace Mueqqen
 
             for (int i = 0; i < TopicsCount; i++)
             {
-                if (this.Subscriptions.TryGetValue(Topics[i], out MQTTSubscription Subscription))
+                if (this.Subscriptions.TryGetValue(Topics[i], out MqttSubscription Subscription))
                 {
                     Subscription.AddCallback(Callbacks[i]);
                 }
                 else
                 {
-                    this.Subscriptions.Add(Topics[i], new MQTTSubscription(Topics[i], Callbacks[i]));
+                    this.Subscriptions.Add(Topics[i], new MqttSubscription(Topics[i], Callbacks[i]));
                     NewSubscriptions.Add(Topics[i]);
                 }
             }
@@ -179,7 +179,7 @@ namespace Mueqqen
 
             for (int i = 0; i < TopicsCount; i++)
             {
-                if (this.Subscriptions.TryGetValue(Topics[i], out MQTTSubscription Subscription))
+                if (this.Subscriptions.TryGetValue(Topics[i], out MqttSubscription Subscription))
                 {
                     Subscription.RemoveCallback(Callbacks[i]);
                     if (Subscription.HasNoSubscribers)
@@ -256,7 +256,7 @@ namespace Mueqqen
 
         private void ProcessMessage(Message NewMessage)
         {
-            foreach (MQTTSubscription Endpoint in this.Subscriptions.Values)
+            foreach (MqttSubscription Endpoint in this.Subscriptions.Values)
             {
                 Endpoint.ProcessMessage(NewMessage.Topic, NewMessage.Data);
             }

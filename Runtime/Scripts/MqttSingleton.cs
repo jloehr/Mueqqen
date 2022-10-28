@@ -4,23 +4,23 @@ using UnityEngine;
 
 namespace Mueqqen
 {
-    [RequireComponent(typeof(MQTTManager))]
-    public class MQTTManagerSingleton : MonoBehaviour
+    [RequireComponent(typeof(MqttClient))]
+    public class MqttSingleton : MonoBehaviour
     {
-        public static MQTTManager Instance;
+        public static MqttClient Instance;
 
-        private MQTTManager ThisInstance;  
+        private MqttClient ThisInstance;  
 
         private  void Awake()
         {
             if (Instance == null)
             {
-                Instance = this.GetComponent<MQTTManager>();
+                Instance = this.GetComponent<MqttClient>();
                 DontDestroyOnLoad(this.gameObject);
             }
             else
             {
-                Debug.LogErrorFormat("Instantiation of a second singleton of type {0}.", nameof(MQTTManager));
+                Debug.LogErrorFormat("Instantiation of a second singleton of type {0}.", nameof(MqttClient));
             }
         }
 
